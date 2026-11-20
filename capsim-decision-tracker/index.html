@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CAPSIM Decision Tracker</title>
+  <style>
+    :root {
+      --bg: #0f172a;
+      --bg-elevated: #1e293b;
+      --fg: #f1f5f9;
+      --muted: #94a3b8;
+      --accent: #22d3ee;
+      --accent-dim: #06b6d4;
+      --success: #22c55e;
+      --warning: #f59e0b;
+      --danger: #ef4444;
+      --border: #334155;
+      --card: #1e293b;
+      --input-bg: #0f172a;
+      --focus: #22d3ee;
+    }
+    @media (prefers-color-scheme: light) {
+      :root {
+        --bg: #f8fafc;
+        --bg-elevated: #ffffff;
+        --fg: #0f172a;
+        --muted: #64748b;
+        --accent: #06b6d4;
+        --accent-dim: #0891b2;
+        --success: #16a34a;
+        --warning: #d97706;
+        --danger: #dc2626;
+        --border: #e2e8f0;
+        --card: #ffffff;
+        --input-bg: #ffffff;
+        --focus: #06b6d4;
+      }
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: system-ui, -apple-system, sans-serif; background: var(--bg); color: var(--fg); line-height: 1.6; min-height: 100vh; padding: 2rem 1rem; }
+    .container { max-width: 900px; margin: 0 auto; }
+    h1 { font-size: clamp(1.5rem, 4vw, 2rem); margin-bottom: 0.5rem; }
+    .subtitle { color: var(--muted); margin-bottom: 2rem; }
+    .card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 1.5rem; margin-bottom: 1.5rem; }
+    .card h2 { font-size: 1.1rem; margin-bottom: 1rem; display: flex; align-items: center; gap: 0.5rem; }
+    .round-selector { display: flex; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 1rem; }
+    .round-btn { padding: 0.5rem 1rem; border: 1px solid var(--border); background: var(--bg); color: var(--fg); border-radius: 8px; cursor: pointer; transition: all 0.2s; font-size: 0.9rem; }
+    .round-btn:hover { border-color: var(--accent); }
+    .round-btn.active { background: var(--accent); color: var(--bg); border-color: var(--accent); font-weight: 600; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; }
+    .field { display: flex; flex-direction: column; gap: 0.35rem; }
+    .field label { font-size: 0.8rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; }
+    .field input { padding: 0.6rem 0.8rem; border: 1px solid var(--border); border-radius: 8px; background: var(--input-bg); color: var(--fg); font-size: 1rem; font-family: inherit; }
+    .field input:focus { outline: none; border-color: var(--focus); box-shadow: 0 0 0 3px color-mix(in srgb, var(--focus) 20%, transparent); }
+    .field input::placeholder { color: var(--muted); opacity: 0.5; }
+    .metrics { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 1rem; margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--border); }
+    .metric { text-align: center; }
+    .metric-value { font-size: 1.5rem; font-weight: 700; color: var(--accent); }
+    .metric-label { font-size: 0.75rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; }
+    .actions { display: flex; gap: 0.75rem; flex-wrap: wrap; margin-top: 1rem; }
+    .btn { padding: 0.7rem 1.2rem; border: none; border-radius: 8px; font-size: 0.9rem; font-weight: 600; cursor: pointer; transition: all 0.2s; }
+    .btn-primary { background: var(--accent); color: var(--bg); }
+    .btn-primary:hover { background: var(--accent-dim); }
+    .btn-secondary { background: var(--bg-elevated); color: var(--fg); border: 1px solid var(--border); }
+    .btn-secondary:hover { border-color: var(--accent); }
+    .btn-danger { background: var(--danger); color: white; }
+    .toast { position: fixed; bottom: 2rem; right: 2rem; padding: 1rem 1.5rem; background: var(--card); border: 1px solid var(--border); border-radius: 8px; box-shadow: 0 10px 30px rgba(0,0,0,0.3); transform: translateY(100px); opacity: 0; transition: all 0.3s; z-index: 100; }
+    .toast.show { transform: translateY(0); opacity: 1; }
+    .toast.success { border-color: var(--success); }
+    .toast.error { border-color: var(--danger); }
+    .empty-state { text-align: center; padding: 3rem; color: var(--muted); }
+    .empty-state svg { width: 64px; height: 64px; margin-bottom: 1rem; opacity: 0.5; }
+    .history-list { display: flex; flex-direction: column; gap: 0.5rem; }
+    .history-item { display: flex; justify-content: space-between; align-items: center; padding: 0.75rem; background: var(--bg); border: 1px solid var(--border); border-radius: 8px; }
+    .history-round { font-weight: 600; color: var(--accent); }
+    .history-date { font-size: 0.8rem; color: var(--muted); }
+    .history-metrics { display: flex; gap: 1rem; font-size: 0.8rem; color: var(--muted); }
+    .footer { text-align: center; margin-top: 2rem; color: var(--muted); font-size: 0.8rem; }
+    .footer a { color: var(--accent); text-decoration: none; }
+    .footer a:hover { text-decoration: underline; }
+    @media (max-width: 600px) {
+      .grid { grid-template-columns: 1fr; }
+      .metrics { grid-template-columns: repeat(2, 1fr); }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>CAPSIM Decision Tracker</h1>
+      <p class="subtitle">Track simulation decisions across rounds • Auto-calculates key metrics • Persists locally</p>
+    </header>
+
+    <section class="card">
+      <h2><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 2v4"/><path d="M16 2v4"/><rect x="2" y="6" width="20" height="12" rx="2"/><path d="M2 10h20"/><path d="M2 14h20"/><path d="M2 18h20"/></svg> Current Round Decisions</h2>
+      <div class="round-selector" id="roundSelector"></div>
+      <form id="decisionForm" class="grid">
+        <div class="field"><label>R&D Budget ($)</label><input type="number" id="rdBudget" name="rdBudget" min="0" step="1000" placeholder="e.g., 2000000"></div>
+        <div class="field"><label>Marketing Budget ($)</label><input type="number" id="marketingBudget" name="marketingBudget" min="0" step="1000" placeholder="e.g., 3000000"></div>
+        <div class="field"><label>Production Capacity</label><input type="number" id="productionCap" name="productionCap" min="0" step="100" placeholder="e.g., 2000"></div>
+        <div class="field"><label>Automation Level</label><input type="number" id="automation" name="automation" min="0" max="10" step="0.1" placeholder="e.g., 5.0"></div>
+        <div class="field"><label>Sales Forecast (Units)</label><input type="number" id="salesForecast" name="salesForecast" min="0" step="100" placeholder="e.g., 1800"></div>
+        <div class="field"><label>Price ($/Unit)</label><input type="number" id="price" name="price" min="0" step="1" placeholder="e.g., 35"></div>
+        <div class="field"><label>Promo Budget ($)</label><input type="number" id="promoBudget" name="promoBudget" min="0" step="1000" placeholder="e.g., 1500000"></div>
+        <div class="field"><label>HR Training ($)</label><input type="number" id="hrTraining" name="hrTraining" min="0" step="1000" placeholder="e.g., 500000"></div>
+        <div class="field"><label>TQM Investment ($)</label><input type="number" id="tqm" name="tqm" min="0" step="1000" placeholder="e.g., 1000000"></div>
+        <div class="field"><label>Stock Buyback ($)</label><input type="number" id="stockBuyback" name="stockBuyback" min="0" step="1000" placeholder="e.g., 0"></div>
+        <div class="field"><label>Dividend ($/share)</label><input type="number" id="dividend" name="dividend" min="0" step="0.01" placeholder="e.g., 0.50"></div>
+      </form>
+      <div class="metrics" id="metrics"></div>
+      <div class="actions">
+        <button type="submit" form="decisionForm" class="btn btn-primary">Save Round</button>
+        <button type="button" id="clearBtn" class="btn btn-secondary">Clear Form</button>
+        <button type="button" id="exportBtn" class="btn btn-secondary">Export JSON</button>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3h18v18H3z"/><path d="M9 9v6"/><path d="M15 15v-6"/></svg> Round History</h2>
+      <div id="history" class="history-list"></div>
+    </section>
+
+    <footer class="footer">
+      <p>Built for BADM 372 Build Rep • <a href="https://github.com" target="_blank">View Source</a></p>
+    </footer>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script>
+    // --- State ---
+    const STORAGE_KEY = 'capsim-decisions';
+    let decisions = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+    let currentRound = decisions.length + 1;
+
+    // --- DOM ---
+    const roundSelector = document.getElementById('roundSelector');
+    const form = document.getElementById('decisionForm');
+    const metricsEl = document.getElementById('metrics');
+    const historyEl = document.getElementById('history');
+    const toast = document.getElementById('toast');
+    const clearBtn = document.getElementById('clearBtn');
+    const exportBtn = document.getElementById('exportBtn');
+
+    // --- Helpers ---
+    const fields = ['rdBudget','marketingBudget','productionCap','automation','salesForecast','price','promoBudget','hrTraining','tqm','stockBuyback','dividend'];
+    const fieldLabels = {
+      rdBudget: 'R&D', marketingBudget: 'Marketing', productionCap: 'Capacity',
+      automation: 'Automation', salesForecast: 'Forecast', price: 'Price',
+      promoBudget: 'Promo', hrTraining: 'HR', tqm: 'TQM',
+      stockBuyback: 'Buyback', dividend: 'Dividend'
+    };
+
+    function showToast(msg, type = 'success') {
+      toast.textContent = msg;
+      toast.className = `toast ${type} show`;
+      setTimeout(() => toast.classList.remove('show'), 3000);
+    }
+
+    function calculateMetrics(data) {
+      const revenue = (data.salesForecast || 0) * (data.price || 0);
+      const totalSpend = (data.rdBudget||0)+(data.marketingBudget||0)+(data.promoBudget||0)+(data.hrTraining||0)+(data.tqm||0);
+      const margin = revenue > 0 ? ((revenue - totalSpend) / revenue * 100).toFixed(1) : 0;
+      const capacityUtil = data.productionCap > 0 ? ((data.salesForecast||0)/data.productionCap*100).toFixed(1) : 0;
+      const automationCost = data.productionCap * (data.automation||0) * 4000; // rough estimate
+      return {
+        revenue: revenue.toLocaleString(),
+        totalSpend: totalSpend.toLocaleString(),
+        margin: margin + '%',
+        capacityUtil: capacityUtil + '%',
+        automationCost: automationCost.toLocaleString()
+      };
+    }
+
+    function renderMetrics(data) {
+      const m = calculateMetrics(data);
+      metricsEl.innerHTML = `
+        <div class="metric"><div class="metric-value">$${m.revenue}</div><div class="metric-label">Projected Revenue</div></div>
+        <div class="metric"><div class="metric-value">$${m.totalSpend}</div><div class="metric-label">Total Operating Spend</div></div>
+        <div class="metric"><div class="metric-value">${m.margin}</div><div class="metric-label">Est. Margin</div></div>
+        <div class="metric"><div class="metric-value">${m.capacityUtil}</div><div class="metric-label">Capacity Utilization</div></div>
+        <div class="metric"><div class="metric-value">$${m.automationCost}</div><div class="metric-label">Automation Cost Est.</div></div>
+      `;
+    }
+
+    function renderRoundSelector() {
+      roundSelector.innerHTML = '';
+      const maxRounds = Math.max(8, currentRound);
+      for (let i = 1; i <= maxRounds; i++) {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = `round-btn${i === currentRound ? ' active' : ''}`;
+        btn.textContent = `Round ${i}`;
+        btn.onclick = () => switchRound(i);
+        roundSelector.appendChild(btn);
+      }
+    }
+
+    function loadRound(round) {
+      const existing = decisions.find(d => d.round === round);
+      fields.forEach(f => {
+        const input = document.getElementById(f);
+        if (existing && existing[f] !== undefined) {
+          input.value = existing[f];
+        } else {
+          input.value = '';
+        }
+      });
+      renderMetrics(existing || {});
+    }
+
+    function switchRound(round) {
+      currentRound = round;
+      renderRoundSelector();
+      loadRound(round);
+    }
+
+    function saveRound(data) {
+      const idx = decisions.findIndex(d => d.round === currentRound);
+      const record = { round: currentRound, timestamp: new Date().toISOString(), ...data };
+      if (idx >= 0) decisions[idx] = record;
+      else decisions.push(record);
+      decisions.sort((a,b) => a.round - b.round);
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(decisions));
+      renderHistory();
+      renderRoundSelector();
+      showToast(`Round ${currentRound} saved`);
+    }
+
+    function renderHistory() {
+      if (decisions.length === 0) {
+        historyEl.innerHTML = '<div class="empty-state"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 3h18v18H3z"/><path d="M9 9v6"/><path d="M15 15v-6"/></svg><p>No rounds saved yet. Fill the form and click <strong>Save Round</strong>.</p></div>';
+        return;
+      }
+      historyEl.innerHTML = decisions.map(d => {
+        const m = calculateMetrics(d);
+        return `
+          <div class="history-item">
+            <div>
+              <div class="history-round">Round ${d.round}</div>
+              <div class="history-date">${new Date(d.timestamp).toLocaleString()}</div>
+            </div>
+            <div class="history-metrics">
+              <span>Rev: $${m.revenue}</span>
+              <span>Margin: ${m.margin}</span>
+              <span>Util: ${m.capacityUtil}</span>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function clearForm() {
+      fields.forEach(f => document.getElementById(f).value = '');
+      renderMetrics({});
+    }
+
+    function exportData() {
+      const blob = new Blob([JSON.stringify(decisions, null, 2)], {type: 'application/json'});
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `capsim-decisions-${new Date().toISOString().split('T')[0]}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+      showToast('Exported to JSON');
+    }
+
+    function getFormData() {
+      const data = {};
+      fields.forEach(f => { const v = document.getElementById(f).value; data[f] = v ? parseFloat(v) : 0; });
+      return data;
+    }
+
+    function updateLiveMetrics() {
+      renderMetrics(getFormData());
+    }
+
+    // --- Events ---
+    form.addEventListener('submit', e => {
+      e.preventDefault();
+      saveRound(getFormData());
+    });
+    fields.forEach(f => document.getElementById(f).addEventListener('input', updateLiveMetrics));
+    clearBtn.onclick = clearForm;
+    exportBtn.onclick = exportData;
+
+    // --- Init ---
+    renderRoundSelector();
+    loadRound(currentRound);
+    renderHistory();
+  </script>
+</body>
+</html>
